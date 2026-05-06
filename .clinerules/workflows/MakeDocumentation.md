@@ -16,6 +16,7 @@ docフォルダの配下に置くこと
 ## plantUML記法の例
 
 ### シーケンス図の例
+(シーケンス図にif then などは使えない。alt/else/endとなることに注意 )
 @startuml
 Alice-> Bob: Authentication Request
 alt successful case
@@ -52,6 +53,7 @@ N2 .. (Use)
 @enduml
 
 ### フローチャート図の例
+(PlantUMLのフローチャートではloop記法は存在しないことに注意)
 @startuml
 !pragma useVerticalIf on
 start
@@ -70,3 +72,30 @@ endif
 stop
 @enduml
 
+### クラス図の例
+@startuml
+abstract class AbstractList
+abstract AbstractCollection
+interface List
+interface Collection
+List <|-- AbstractList
+Collection <|-- AbstractCollection
+Collection <|- List
+AbstractCollection <|- AbstractList
+AbstractList <|-- ArrayList
+class ArrayList {
+Object[] elementData
+size()
+}
+enum TimeUnit {
+DAYS
+HOURS
+MINUTES
+}
+annotation SuppressWarnings
+annotation Annotation {
+annotation with members
+String foo()
+String bar()
+}
+@enduml

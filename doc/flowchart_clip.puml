@@ -1,0 +1,51 @@
+@startuml
+title ImageViewer - クリップ機能 フローチャート
+
+!pragma useVerticalIf on
+
+start
+
+:クリップメニューを選択 (Ctrl+C);
+:ClipDialogを起動;
+:ダイアログUIを設定;
+:画像をキャンバスに表示;
+
+:ユーザーがマウス押下;
+:選択矩形を作成;
+
+:ユーザーがマウスドラッグ;
+:矩形座標を更新;
+
+:ユーザーがマウスリリース;
+:座標を変換 (表示座標→元画像座標);
+
+if (選択領域が有効か?) then (yes)
+  :選択領域を保存;
+  :領域情報を表示;
+  :クリップボタンを有効化;
+else (no)
+  :何もしない;
+  stop
+endif
+
+:ユーザーがクリップして保存ボタン押下;
+:image.crop((x1, y1, x2, y2));
+:保存ダイアログを表示;
+
+:ユーザーが保存先を選択;
+
+if (PNG保存) then (yes)
+  :image.save(path, "PNG");
+else (JPG保存)
+  if (RGBAモード?) then (yes)
+    :白背景を合成してRGB変換;
+  endif
+  :image.save(path, "JPEG", quality=95);
+endif
+
+:保存完了;
+:ダイアログを閉じる;
+
+stop
+
+@enduml

@@ -1,0 +1,96 @@
+@startuml
+title ImageViewer - 透過色指定機能 シーケンス図
+
+actor ユーザー as user
+participant "ImageViewerApp" as app
+participant "TransparencyDialog" as trans
+participant "Canvas" as canvas
+participant "Pillow Image" as pillow
+
+== 透過ダイアログ起動 ==
+user -> app: 編集→透過色指定 (Ctrl+T)
+app -> app: _set_transparency()
+app -> trans: TransparencyDialog(self, image, path)
+trans -> pillow: image.convert("RGBA")
+pillow --> trans: RGBA Image
+trans -> trans: _setup_window()
+trans -> trans: _setup_ui()
+trans -> trans: _setup_canvas()
+trans --> user: 透過色指定ダイアログ表示
+
+== 画像表示 ==
+trans -> pillow: 元画像を取得
+pillow --> trans: Imageオブジェクト
+trans -> canvas: 画像を1:1表示
+canvas --> user: 画像表示
+
+== 背景色選択 ==
+user -> canvas: 画像クリック (ButtonPress-1)
+canvas -> trans: _on_canvas_click(event)
+trans -> trans: スクロール位置を計算
+trans -> trans: 画像座標に変換
+trans -> pillow: getpixel((x, y))
+pillow --> trans: RGB値
+trans -> trans: 背景色を保存
+trans --> user: 背景色情報を表示
+trans --> user: 保存ボタンを有効化
+
+== マスク計算 ==
+trans -> trans: _calculate_mask()
+trans -> trans: マスク画像を作成 (Lモード)
+loop 各画素
+  trans -> pillow: 画素のRGBを取得
+  trans -> trans: ユークリッド距離を計算
+  if (距離 <= 許容範囲) then
+    trans -> trans: マスク=0 (透過)
+  else
+    trans -> trans: マスク=255 (非透過)
+  endif
+end
+
+== マスクプレビュー ==
+user -> trans: マスクプレビューボタン
+trans -> trans: _toggle_preview()
+trans -> trans: _blink_mask_overlay()
+
+alt 点滅ON
+  loop 点滅ループ
+    trans -> trans: _show_mask_overlay()
+    trans -> pillow: 赤オーバーレイを合成
+    pillow --> trans: 合成Image
+    trans -> canvas: 赤オーバーレイ表示
+    canvas --> user: 透過領域を赤表示
+    trans -> trans: 500ms待機
+    trans -> canvas: 元画像を表示
+    canvas --> user: 元画像表示
+  end
+else 点滅OFF
+  trans -> canvas: 元画像を表示
+  canvas --> user: 元画像表示
+endif
+
+== 許容範囲変更 ==
+user -> trans: スライダー操作
+trans -> trans: _on_tolerance_change(value)
+trans -> trans: 許容範囲を更新
+trans -> trans: _calculate_mask() (再計算)
+
+== 透過保存 ==
+user -> trans: 透過して保存ボタン
+trans -> trans: _save_transparent()
+trans -> pillow: 画像をコピー
+loop 各画素
+  trans -> trans: マスク値を確認
+  if (マスク=0) then
+    trans -> pillow: 画素を透明に (0,0,0,0)
+  endif
+end
+trans --> user: 保存ダイアログ表示
+user --> trans: 保存先を選択
+trans -> pillow: image.save(path, "PNG")
+pillow --> trans: 保存完了
+trans -> trans: destroy()
+trans --> app: ダイアログ閉じる
+app --> user: 処理完了
+
+@enduml

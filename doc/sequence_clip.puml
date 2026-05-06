@@ -1,0 +1,65 @@
+@startuml
+title ImageViewer - クリップ機能 シーケンス図
+
+actor ユーザー as user
+participant "ImageViewerApp" as app
+participant "ClipDialog" as clip
+participant "Canvas" as canvas
+participant "Pillow Image" as pillow
+
+== クリップダイアログ起動 ==
+user -> app: 編集→クリップ (Ctrl+C)
+app -> app: _start_clip()
+app -> clip: ClipDialog(self, current_image)
+clip -> clip: _setup_window()
+clip -> clip: _setup_ui()
+clip -> clip: _setup_canvas()
+clip --> user: クリップダイアログ表示
+
+== 画像表示 ==
+clip -> pillow: 元画像を取得
+pillow --> clip: Imageオブジェクト
+clip -> pillow: 表示サイズにリサイズ
+pillow --> clip: リサイズ済みImage
+clip -> canvas: 画像を中央に表示
+canvas --> user: 画像表示
+
+== 領域選択 ==
+user -> canvas: マウス押下 (ButtonPress-1)
+canvas -> clip: _on_mouse_press(event)
+clip -> canvas: 選択矩形を作成
+user -> canvas: マウスドラッグ (B1-Motion)
+canvas -> clip: _on_mouse_drag(event)
+clip -> canvas: 矩形座標を更新
+canvas --> user: 緑破線矩形表示
+
+user -> canvas: マウスリリース (ButtonRelease-1)
+canvas -> clip: _on_mouse_release(event)
+clip -> clip: 座標を変換 (表示→元画像)
+clip -> clip: 選択領域を保存
+clip --> user: 選択領域情報を表示
+clip --> user: クリップボタンを有効化
+
+== クリップ保存 ==
+user -> clip: クリップして保存ボタン
+clip -> clip: _clip_and_save()
+clip -> pillow: image.crop((x1, y1, x2, y2))
+pillow --> clip: クリップ済みImage
+clip --> user: 保存ダイアログ表示
+user --> clip: 保存先と形式を選択
+
+if (PNG保存) then
+  clip -> pillow: image.save(path, "PNG")
+else (JPG保存)
+  if (RGBAモード) then
+    clip -> pillow: RGBに変換(白背景合成)
+  endif
+  clip -> pillow: image.save(path, "JPEG", quality=95)
+endif
+
+pillow --> clip: 保存完了
+clip -> clip: destroy()
+clip --> app: ダイアログ閉じる
+app --> user: 処理完了
+
+@enduml

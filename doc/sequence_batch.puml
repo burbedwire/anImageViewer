@@ -1,0 +1,90 @@
+@startuml
+title ImageViewer - 一括変換機能 シーケンス図
+
+actor ユーザー as user
+participant "ImageViewerApp" as app
+participant "BatchConvertDialog" as batch
+participant "Pillow Image" as pillow
+participant "ファイルシステム" as fs
+
+== 一括変換ダイアログ起動 ==
+user -> app: 変換→一括変換 (Ctrl+Shift+R)
+app -> app: _batch_convert()
+app -> batch: BatchConvertDialog(self)
+batch -> batch: _setup_window()
+batch -> batch: _setup_ui()
+batch --> user: 一括変換ダイアログ表示
+
+== ファイル選択 ==
+user -> batch: 画像を選択ボタン
+batch --> user: ファイル選択ダイアログ表示
+user --> batch: 複数画像ファイルを選択
+batch -> batch: ファイルパスを保存
+batch --> user: 選択ファイルリストを表示
+batch --> user: 選択数を表示
+
+== 出力フォルダ選択 ==
+user -> batch: 出力フォルダを選択ボタン
+batch --> user: フォルダ選択ダイアログ表示
+user --> batch: 出力フォルダを選択
+batch -> batch: 出力パスを保存
+batch --> user: 出力フォルダ名を表示
+batch -> batch: _update_convert_button_state()
+batch --> user: 変換ボタンを有効化
+
+== 変換設定 ==
+user -> batch: 変換モードを選択
+batch -> batch: _on_mode_change()
+batch --> user: 入力フィールドを切り替え
+
+user -> batch: 変換パラメータを入力
+user -> batch: Qualityスライダー操作
+batch -> batch: _update_quality_label()
+batch --> user: Quality値を表示
+
+== 一括変換実行 ==
+user -> batch: 一括変換実行ボタン
+batch -> batch: _start_batch_convert()
+batch --> user: 変換ボタンを無効化
+
+loop 各画像ファイル
+  batch -> fs: 画像ファイルを読み込み
+  fs --> batch: ファイルデータ
+  batch -> pillow: Image.open(path)
+  pillow --> batch: Imageオブジェクト
+  batch -> pillow: img.load()
+  batch -> pillow: img.convert("RGB")
+  pillow --> batch: RGB Image
+  
+  batch -> batch: _calculate_new_size()
+  batch -> batch: 新しいサイズを計算
+  
+  if (サイズ変更必要) then
+    batch -> pillow: image.resize((w, h), LANCZOS)
+    pillow --> batch: リサイズ済みImage
+  endif
+  
+  batch -> batch: 出力パスを生成
+  batch -> pillow: image.save(path, "JPEG", quality=N)
+  pillow --> batch: 保存完了
+  batch -> fs: JPGファイルを保存
+  batch --> user: 進捗表示を更新
+  batch -> batch: プログレスバー更新
+end
+
+== 変換完了 ==
+batch -> batch: プログレスバーを100%に
+
+alt 全件成功
+  batch --> user: 完了ダイアログ表示
+  batch --> user: "Nファイルを変換しました"
+else 一部失敗
+  batch --> user: 警告ダイアログ表示
+  batch --> user: "N成功, M失敗"
+endif
+
+batch -> batch: 変換ボタンを有効化
+batch --> app: ダイアログ開放
+app --> user: 処理完了
+
+@enduml

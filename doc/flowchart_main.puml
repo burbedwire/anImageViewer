@@ -10,7 +10,7 @@ start
 :_setup_window(): ウィンドウ設定;
 :_setup_menu(): メニューバー設定;
 :_setup_canvas(): キャンバス設定;
-:_setup_drag_drop(): DnD設定;
+:_setup_drag_drop(): DND設定;
 :_setup_key_bindings(): キーバインド設定;
 
 :メインループ開始;
@@ -61,11 +61,11 @@ elseif (一括変換)
   :BatchConvertDialogを表示;
   :ユーザーが画像を複数選択;
   :出力フォルダを選択;
-  loop 各画像
-    :画像を読み込み;
-    :リサイズ処理;
-    :JPGとして保存;
-  end
+  :一括変換処理を開始;
+  :各画像を順に処理;
+  :画像を読み込み;
+  :リサイズ処理;
+  :JPGとして保存;
   :変換完了ダイアログ;
 elseif (ナビゲーション)
   if (←キー) then (yes)

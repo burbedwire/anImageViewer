@@ -1,0 +1,77 @@
+@startuml
+title ImageViewer - 解像度変換機能 シーケンス図
+
+actor ユーザー as user
+participant "ImageViewerApp" as app
+participant "ResizeDialog" as resize
+participant "Pillow Image" as pillow
+
+== 解像度変換ダイアログ起動 ==
+user -> app: 変換→解像度変換 (Ctrl+R)
+app -> app: _resize_image()
+app -> resize: ResizeDialog(self, image, path)
+resize -> resize: _setup_window()
+resize -> resize: _setup_ui()
+resize --> user: 解像度変換ダイアログ表示
+resize --> user: 元画像サイズを表示
+
+== 変換モード選択 ==
+user -> resize: 比率指定を選択
+resize -> resize: _on_mode_change()
+resize --> user: 比率入力を有効化
+resize --> user: 幅/高さ入力を無効化
+
+user -> resize: 幅指定を選択
+resize -> resize: _on_mode_change()
+resize --> user: 幅入力を有効化
+resize --> user: 比率/高さ入力を無効化
+
+user -> resize: 高さ指定を選択
+resize -> resize: _on_mode_change()
+resize --> user: 高さ入力を有効化
+resize --> user: 比率/幅入力を無効化
+
+== パラメータ入力 ==
+user -> resize: 変換パラメータを入力
+resize -> resize: _calculate_new_size()
+resize -> resize: 新しいサイズを計算
+resize --> user: 予測サイズを表示
+
+== 保存形式選択 ==
+user -> resize: JPGを選択
+resize -> resize: _on_format_change()
+resize --> user: Qualityスライダーを有効化
+
+user -> resize: PNGを選択
+resize -> resize: _on_format_change()
+resize --> user: Qualityスライダーを無効化
+
+== 変換保存 ==
+user -> resize: 変換して保存ボタン
+resize -> resize: _resize_and_save()
+resize -> resize: _calculate_new_size()
+
+alt パラメータエラー
+  resize --> user: エラーダイアログ表示
+else 正常
+  resize -> pillow: image.resize((w, h), LANCZOS)
+  pillow --> resize: リサイズ済みImage
+  resize --> user: 保存ダイアログ表示
+  user --> resize: 保存先を選択
+
+  if (JPG保存) then
+    if (RGBAモード) then
+      resize -> pillow: RGBに変換(白背景合成)
+    endif
+    resize -> pillow: image.save(path, "JPEG", quality=N)
+  else (PNG保存)
+    resize -> pillow: image.save(path, "PNG")
+  endif
+
+  pillow --> resize: 保存完了
+  resize -> resize: destroy()
+  resize --> app: ダイアログ閉じる
+  app --> user: 処理完了
+endif
+
+@enduml

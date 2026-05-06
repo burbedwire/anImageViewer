@@ -1,0 +1,74 @@
+@startuml
+title ImageViewer - 解像度変換機能 フローチャート
+
+!pragma useVerticalIf on
+
+start
+
+:解像度変換メニューを選択 (Ctrl+R);
+:ResizeDialogを起動;
+:ダイアログUIを設定;
+:元画像サイズを表示;
+
+:ユーザーが変換モードを選択;
+
+if (変換モード) then (比率指定)
+  :比率入力を有効化;
+  :幅/高さ入力を無効化;
+elseif (幅指定) then (yes)
+  :幅入力を有効化;
+  :比率/高さ入力を無効化;
+else (高さ指定)
+  :高さ入力を有効化;
+  :比率/幅入力を無効化;
+endif
+
+:ユーザーが変換パラメータを入力;
+:_calculate_new_size()を実行;
+
+if (パラメータ検証) then (正常)
+  :新しいサイズを計算;
+  :予測サイズを表示;
+else (エラー)
+  :エラーメッセージを赤色表示;
+endif
+
+:ユーザーが保存形式を選択;
+
+if (保存形式) then (JPG)
+  :Qualityスライダーを有効化;
+else (PNG)
+  :Qualityスライダーを無効化;
+endif
+
+:ユーザーが変換して保存ボタン押下;
+
+:_calculate_new_size()を実行;
+
+if (パラメータエラー?) then (yes)
+  :エラーダイアログを表示;
+  stop
+else (no)
+endif
+
+:image.resize((w, h), LANCZOS);
+:保存ダイアログを表示;
+:ユーザーが保存先を選択;
+
+if (JPG保存) then (yes)
+  if (RGBAモード?) then (yes)
+    :白背景を合成してRGB変換;
+  elseif (RGBモード以外) then (yes)
+    :RGBに変換;
+  endif
+  :image.save(path, "JPEG", quality=N);
+else (PNG保存)
+  :image.save(path, "PNG");
+endif
+
+:保存完了;
+:ダイアログを閉じる;
+
+stop
+
+@enduml
