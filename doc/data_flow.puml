@@ -50,3 +50,37 @@ resize_dialog --> image_list_mgr : 現在表示画像取得
 image_list_mgr --> img_converter : 画像データ
 resize_dialog --> 変換設定 --> img_converter
 img_converter --> img_saver : リサイズ済み画像
+img_saver --> output_images : PNG/JPG保存
+user --> 保存先選択 --> img_saver
+
+== 透過色指定フロー ==
+user --> 背景色クリック --> trans_dialog
+trans_dialog --> image_list_mgr : 現在表示画像取得
+image_list_mgr --> img_converter : 画像データ(RGBA変換)
+trans_dialog --> 背景色+許容範囲 --> img_converter
+img_converter --> マスク計算 --> img_converter
+img_converter --> マスクプレビュー --> canvas_display
+canvas_display --> 赤オーバーレイ点滅 --> user
+user --> 保存確認 --> trans_dialog
+trans_dialog --> img_saver : 透過PNG
+img_saver --> output_images : PNG保存
+
+== 一括変換フロー ==
+user --> 複数画像選択 --> batch_dialog
+user --> 出力フォルダ選択 --> batch_dialog
+batch_dialog --> img_loader : 各画像読み込み
+img_loader --> img_converter : 画像データ
+batch_dialog --> 変換設定 --> img_converter
+img_converter --> img_saver : 変換済み画像
+img_saver --> output_images : JPG保存
+batch_dialog --> 進捗表示 --> user
+batch_dialog --> 完了通知 --> user
+
+== ナビゲーションフロー ==
+user --> キー操作(←→↑↓) --> app
+app --> image_list_mgr : インデックス更新
+image_list_mgr --> img_loader : 次画像読み込み
+img_loader --> canvas_display : 画像更新
+canvas_display --> user : 画像表示更新
+
+@enduml
