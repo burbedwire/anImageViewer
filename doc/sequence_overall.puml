@@ -1,0 +1,104 @@
+@startuml
+title ImageViewer - 全体シーケンス図
+
+actor ユーザー as user
+participant "main.py" as main
+participant "ImageViewerApp" as app
+participant "ClipDialog" as clip
+participant "ResizeDialog" as resize
+participant "TransparencyDialog" as trans
+participant "BatchConvertDialog" as batch
+participant "Pillow" as pillow
+
+user -> main: アプリケーション起動
+main -> app: ImageViewerApp() を作成
+app -> app: _setup_window()
+app -> app: _setup_menu()
+app -> app: _setup_canvas()
+app -> app: _setup_drag_drop()
+app -> app: _setup_key_bindings()
+app --> user: メインウィンドウ表示
+
+note right of app
+  メインウィンドウ(1280x720)が表示
+  ステータスバー: "準備完了"
+end note
+
+== 画像を開く ==
+user -> app: ファイル→開く (Ctrl+O)
+app -> app: _open_file()
+app --> user: ファイル選択ダイアログ
+user --> app: 画像ファイルを選択
+app -> app: open_image(file_path)
+app -> pillow: Image.open(path)
+pillow --> app: Imageオブジェクト
+app -> app: _display_image(img)
+app --> user: 画像を表示
+
+note right of app
+  同じフォルダの画像リストを自動取得
+  ステータスバーに画像情報を表示
+end note
+
+== フォルダ内ナビゲーション ==
+user -> app: ←キー押下
+app -> app: _prev_image()
+app -> app: open_image(image_list[index-1])
+app -> pillow: Image.open()
+pillow --> app: Imageオブジェクト
+app -> app: _display_image(img)
+app --> user: 前の画像を表示
+
+== クリップ機能 ==
+user -> app: 編集→クリップ (Ctrl+C)
+app -> clip: ClipDialog(self, image)
+clip --> user: クリップダイアログ表示
+user -> clip: ドラッグで領域選択
+user -> clip: クリップして保存ボタン
+clip -> pillow: image.crop(region)
+clip -> pillow: image.save(path)
+clip --> app: ダイアログ閉じる
+
+== 解像度変換 ==
+user -> app: 変換→解像度変換 (Ctrl+R)
+app -> resize: ResizeDialog(self, image, path)
+resize --> user: 解像度変換ダイアログ表示
+user -> resize: 変換パラメータ入力
+user -> resize: 変換して保存ボタン
+resize -> pillow: image.resize(size, LANCZOS)
+resize -> pillow: image.save(path)
+resize --> app: ダイアログ閉じる
+
+== 透過色指定 ==
+user -> app: 編集→透過色指定 (Ctrl+T)
+app -> trans: TransparencyDialog(self, image, path)
+trans --> user: 透過色指定ダイアログ表示
+user -> trans: 画像クリックで背景色選択
+trans -> trans: _calculate_mask()
+user -> trans: マスクプレビュー
+trans -> trans: _show_mask_overlay()
+user -> trans: 透過して保存ボタン
+trans -> pillow: image.save(path, "PNG")
+trans --> app: ダイアログ閉じる
+
+== 一括変換 ==
+user -> app: 変換→一括変換 (Ctrl+Shift+R)
+app -> batch: BatchConvertDialog(self)
+batch --> user: 一括変換ダイアログ表示
+user -> batch: 画像を複数選択
+user -> batch: 出力フォルダ選択
+user -> batch: 一括変換実行
+loop 各画像について
+  batch -> pillow: Image.open(file)
+  batch -> pillow: image.resize()
+  batch -> pillow: image.save(output_path)
+end
+batch --> app: 変換完了通知
+batch --> user: 完了ダイアログ
+
+== アプリケーション終了 ==
+user -> app: ファイル→終了
+app -> app: quit()
+app --> main: アプリケーション終了
+
+@enduml

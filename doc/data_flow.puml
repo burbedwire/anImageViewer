@@ -1,0 +1,52 @@
+@startuml
+title ImageViewer - データフロー図
+
+left to right direction
+
+actor ユーザー as user
+
+database "ファイルシステム" as filesystem {
+  folder "入力画像" as input_images
+  folder "出力画像" as output_images
+}
+
+component "ImageViewerApp" as app {
+  component "キャンバス表示" as canvas_display
+  component "ステータスバー" as status_bar
+  component "画像リスト管理" as image_list_mgr
+}
+
+component "ClipDialog" as clip_dialog
+component "ResizeDialog" as resize_dialog
+component "TransparencyDialog" as trans_dialog
+component "BatchConvertDialog" as batch_dialog
+
+component "Pillow画像処理" as pillow {
+  component "画像読み込み" as img_loader
+  component "画像変換" as img_converter
+  component "画像保存" as img_saver
+}
+
+== 画像表示フロー ==
+user --> ファイル選択/ドロップ --> app
+input_images --> img_loader : 画像ファイル読み込み
+img_loader --> image_list_mgr : Imageオブジェクト
+image_list_mgr --> canvas_display : 表示用Image変換
+canvas_display --> user : 画像表示
+image_list_mgr --> status_bar : 画像情報
+
+== クリップフロー ==
+user --> 領域選択 --> clip_dialog
+clip_dialog --> image_list_mgr : 現在表示画像取得
+image_list_mgr --> img_converter : 画像データ
+clip_dialog --> 切り出し座標 --> img_converter
+img_converter --> img_saver : クリップ済み画像
+img_saver --> output_images : PNG/JPG保存
+user --> 保存先選択 --> img_saver
+
+== 解像度変換フロー ==
+user --> 変換パラメータ入力 --> resize_dialog
+resize_dialog --> image_list_mgr : 現在表示画像取得
+image_list_mgr --> img_converter : 画像データ
+resize_dialog --> 変換設定 --> img_converter
+img_converter --> img_saver : リサイズ済み画像

@@ -1,0 +1,90 @@
+@startuml
+title ImageViewer - メインフローチャート
+
+!pragma useVerticalIf on
+
+start
+
+:アプリケーション起動 (main.py);
+:ImageViewerApp() を作成;
+:_setup_window(): ウィンドウ設定;
+:_setup_menu(): メニューバー設定;
+:_setup_canvas(): キャンバス設定;
+:_setup_drag_drop(): DnD設定;
+:_setup_key_bindings(): キーバインド設定;
+
+:メインループ開始;
+
+if (ユーザー操作) then (画像を開く)
+  if (ドラッグアンドドロップ) then (yes)
+    :ドロップイベントを処理;
+    :ファイルパスを取得;
+  else (ファイルダイアログ)
+    :ファイル選択ダイアログ表示;
+    :ユーザーがファイルを選択;
+  endif
+  :ファイルパスを検証;
+  if (ファイル存在?) then (yes)
+    if (サポート形式?) then (yes)
+      :Pillowで画像を読み込み;
+      :同じフォルダの画像リストを取得;
+      :キャンバスに画像を表示;
+      :ステータスバーを更新;
+    else (no)
+      :エラー表示: 形式未サポート;
+    endif
+  else (no)
+    :エラー表示: ファイル不存在;
+  endif
+elseif (クリップ)
+  :ClipDialogを表示;
+  :ユーザーが領域を選択;
+  :選択領域をクリップ;
+  :保存ダイアログ表示;
+  :クリップ画像を保存;
+elseif (透過色指定)
+  :TransparencyDialogを表示;
+  :ユーザーが背景色をクリック選択;
+  :透過マスクを計算;
+  if (マスクプレビュー) then (yes)
+    :赤オーバーレイを点滅表示;
+  endif
+  :透過PNGを保存;
+elseif (解像度変換)
+  :ResizeDialogを表示;
+  :ユーザーが変換パラメータ入力;
+  :新しいサイズを計算;
+  :画像をリサイズ;
+  :保存ダイアログ表示;
+  :変換済み画像を保存;
+elseif (一括変換)
+  :BatchConvertDialogを表示;
+  :ユーザーが画像を複数選択;
+  :出力フォルダを選択;
+  loop 各画像
+    :画像を読み込み;
+    :リサイズ処理;
+    :JPGとして保存;
+  end
+  :変換完了ダイアログ;
+elseif (ナビゲーション)
+  if (←キー) then (yes)
+    :前の画像を表示;
+  elseif (→キー) then (yes)
+    :次の画像を表示;
+  elseif (↑キー) then (yes)
+    :1枚目の画像を表示;
+  else (↓キー)
+    :最後の画像を表示;
+  endif
+elseif (閉じる)
+  :画像クリア;
+  :キャンバスを消去;
+  :ステータスバーをリセット;
+else (終了)
+  stop
+endif
+
+:メインループ継続;
+
+@enduml

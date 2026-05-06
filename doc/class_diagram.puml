@@ -1,0 +1,200 @@
+@startuml
+title ImageViewer - クラス図
+
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Meiryo"
+
+' 外部ライブラリパッケージ
+package "customtkinter" as ctk {
+  class CTk {
+    #title(title: str)
+    #geometry(geometry: str)
+    #minsize(width: int, height: int)
+    #bind(sequence: str, func: callable)
+    #quit()
+    #wait_window(window: Tk)
+  }
+  
+  class CTkToplevel {
+    #title(title: str)
+    #geometry(geometry: str)
+    #transient(parent: Tk)
+    #grab_set()
+    #destroy()
+  }
+}
+
+package "PIL" as pillow {
+  class Image {
+    +width: int
+    +height: int
+    +mode: str
+    +open(file: str) -> Image
+    +convert(mode: str) -> Image
+    +resize(size: tuple, resample: int) -> Image
+    +crop(box: tuple) -> Image
+    +save(file: str, format: str)
+    +load()
+    +getpixel(xy: tuple) -> tuple
+    +copy() -> Image
+  }
+  
+  class ImageTk {
+    class PhotoImage {
+      +width() -> int
+      +height() -> int
+    }
+  }
+}
+
+package "tkinter" as tk {
+  class Canvas {
+    +create_image(x: int, y: int, image: PhotoImage, anchor: str) -> int
+    +create_rectangle(x1, y1, x2, y2, outline: str) -> int
+    +delete(tagOrId: str)
+    +configure(scrollregion: tuple)
+    +bind(sequence: str, func: callable)
+  }
+  
+  class Event
+}
+
+package "pathlib" as pathlib {
+  class Path {
+    +name: str
+    +stem: str
+    +suffix: str
+    +parent: Path
+    +is_file() -> bool
+    +resolve() -> Path
+    +iterdir() -> iterator
+  }
+}
+
+' アプリケーションパッケージ
+package "ImageViewer" {
+  
+  class ImageViewerApp {
+    +{inherit} CTk
+    -_current_image_path: Optional[Path]
+    -_image_list: List[Path]
+    -_current_index: int
+    -_current_image: Optional[Image]
+    -_photo_image: Optional[PhotoImage]
+    -_canvas_image_item: Optional[int]
+    -canvas: Canvas
+    -status_bar: CTkLabel
+    +__init__()
+    +open_image(file_path: str) -> bool
+    +_display_image(img: Image) -> None
+    +_prev_image(event: Event) -> None
+    +_next_image(event: Event) -> None
+    +_first_image(event: Event) -> None
+    +_last_image(event: Event) -> None
+    +_open_file() -> None
+    +_close_file() -> None
+    +_clip_save() -> None
+    +_start_clip() -> None
+    +_set_transparency() -> None
+    +_resize_image() -> None
+    +_batch_convert() -> None
+    +_on_drop(event: str) -> None
+    +_on_canvas_resize(event: Event) -> None
+    +_update_status(message: str) -> None
+  }
+  
+  class ClipDialog {
+    +{inherit} CTkToplevel
+    -_original_image: Image
+    -_selected_region: Optional[Tuple[int,int,int,int]]
+    -_photo_image: PhotoImage
+    -canvas: Canvas
+    +__init__(parent: CTk, image: Image)
+    +_display_image() -> None
+    +_on_mouse_press(event: Event) -> None
+    +_on_mouse_drag(event: Event) -> None
+    +_on_mouse_release(event: Event) -> None
+    +_clip_and_save() -> None
+  }
+  
+  class ResizeDialog {
+    +{inherit} CTkToplevel
+    -_original_image: Image
+    -_original_path: Optional[Path]
+    -_original_width: int
+    -_original_height: int
+    +__init__(parent: CTk, image: Image, image_path: Path)
+    +_calculate_new_size() -> Tuple[int, int]
+    +_resize_and_save() -> None
+    +_on_mode_change() -> None
+    +_update_preview() -> None
+  }
+  
+  class TransparencyDialog {
+    +{inherit} CTkToplevel
+    -_original_image: Image
+    -_original_path: Optional[Path]
+    -_background_color: Optional[Tuple[int,int,int]]
+    -_tolerance: int
+    -_mask_image: Optional[Image]
+    -_is_blinking: bool
+    -canvas: Canvas
+    +__init__(parent: CTk, image: Image, image_path: Path)
+    +_calculate_mask() -> None
+    +_toggle_preview() -> None
+    +_show_mask_overlay() -> None
+    +_save_transparent() -> None
+    +_on_canvas_click(event: Event) -> None
+  }
+  
+  class BatchConvertDialog {
+    +{inherit} CTkToplevel
+    -_selected_files: List[Path]
+    -_output_dir: Optional[Path]
+    +__init__(parent: CTk)
+    +_select_files() -> None
+    +_select_output_dir() -> None
+    +_calculate_new_size(w: int, h: int) -> Tuple[int, int]
+    +_start_batch_convert() -> None
+  }
+  
+  class Main {
+    +main() -> None
+  }
+}
+
+' 継承関係
+CTk <|-- ImageViewerApp
+CTkToplevel <|-- ClipDialog
+CTkToplevel <|-- ResizeDialog
+CTkToplevel <|-- TransparencyDialog
+CTkToplevel <|-- BatchConvertDialog
+
+' 依存関係
+ImageViewerApp --> Image : 使用
+ImageViewerApp --> PhotoImage : 使用
+ImageViewerApp --> Canvas : 保持
+ImageViewerApp --> Path : 使用
+ImageViewerApp ..> ClipDialog : 生成
+ImageViewerApp ..> ResizeDialog : 生成
+ImageViewerApp ..> TransparencyDialog : 生成
+ImageViewerApp ..> BatchConvertDialog : 生成
+
+ClipDialog --> Image : 使用
+ClipDialog --> PhotoImage : 使用
+ClipDialog --> Canvas : 保持
+
+ResizeDialog --> Image : 使用
+ResizeDialog --> Path : 使用
+
+TransparencyDialog --> Image : 使用
+TransparencyDialog --> PhotoImage : 使用
+TransparencyDialog --> Canvas : 保持
+TransparencyDialog --> Path : 使用
+
+BatchConvertDialog --> Image : 使用
+BatchConvertDialog --> Path : 使用
+
+Main --> ImageViewerApp : 生成
+
+@enduml

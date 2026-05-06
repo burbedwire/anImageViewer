@@ -1,0 +1,76 @@
+@startuml
+title ImageViewer - ユースケース図
+
+left to right direction
+
+actor "画像閲覧者" as viewer
+actor "画像編集者" as editor
+actor "大量画像処理者" as batch_user
+
+rectangle "ImageViewer" {
+
+  usecase "画像を表示する" as UC1
+  usecase "ファイルダイアログで開く" as UC2
+  usecase "ドラッグアンドドロップで開く" as UC3
+  usecase "フォルダ内をナビゲーションする" as UC4
+  usecase "前の画像を表示" as UC5
+  usecase "次の画像を表示" as UC6
+  usecase "1枚目の画像に移動" as UC7
+  usecase "最後の画像に移動" as UC8
+  usecase "画像をクリップする" as UC9
+  usecase "解像度を変換する" as UC10
+  usecase "透過色を指定する" as UC11
+  usecase "一括変換する" as UC12
+  usecase "画像を閉じる" as UC13
+
+  viewer --> UC1
+  viewer --> UC2
+  viewer --> UC3
+  viewer --> UC4
+  viewer --> UC13
+
+  editor --> UC9
+  editor --> UC10
+  editor --> UC11
+
+  batch_user --> UC12
+
+  UC1 <--|> UC2
+  UC1 <--|> UC3
+  UC4 <--|> UC5
+  UC4 <--|> UC6
+  UC4 <--|> UC7
+  UC4 <--|> UC8
+
+  note right of UC1
+    サポート形式:
+    JPG, PNG, BMP, GIF,
+    TIFF, WebP
+  end note
+
+  note right of UC9
+    画像上の領域を
+    ドラッグで選択して
+    切り出し保存
+  end note
+
+  note right of UC10
+    比率指定 / 幅指定 /
+    高さ指定の3モード
+    保存形式: JPG, PNG
+  end note
+
+  note right of UC11
+    背景色をクリックで選択
+    許容範囲を調整
+    透過PNGとして保存
+  end note
+
+  note right of UC12
+    複数画像を選択
+    出力フォルダを指定
+    一括でJPG変換
+  end note
+
+}
+@enduml
