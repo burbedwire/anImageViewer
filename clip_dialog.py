@@ -1,12 +1,13 @@
 """クリップ機能のダイアログ."""
 
 import logging
+import math
 import tkinter as tk
 from pathlib import Path
 from typing import Optional, Tuple
 
 import customtkinter as ctk
-from PIL import Image, ImageTk
+from PIL import Image, ImageDraw, ImageTk
 
 # ロガー設定
 logger = logging.getLogger(__name__)
@@ -15,11 +16,16 @@ logger = logging.getLogger(__name__)
 class ClipDialog(ctk.CTkToplevel):
     """画像をクリップして保存するダイアログクラス."""
 
+    # クロップモード定数
+    MODE_RECTANGLE: str = "rectangle"
+    MODE_CIRCLE: str = "circle"
+
     def __init__(self, parent: ctk.CTk, image: Image.Image):
         super().__init__(parent)
         self._parent = parent
         self._original_image = image
         self._selected_region: Optional[Tuple[int, int, int, int]] = None
+        self._crop_mode: str = self.MODE_RECTANGLE  # デフォルトは矩形モード
 
         self._setup_window()
         self._setup_ui()
@@ -46,6 +52,38 @@ class ClipDialog(ctk.CTkToplevel):
         )
         info_label.pack(pady=(10, 5))
 
+        # モード切り替えフレーム
+        mode_frame = ctk.CTkFrame(self)
+        mode_frame.pack(pady=(5, 10))
+
+        mode_label = ctk.CTkLabel(
+            mode_frame,
+            text="クロップモード:",
+            font=("Helvetica", 12),
+        )
+        mode_label.pack(side=tk.LEFT, padx=(10, 5))
+
+        # モード切り替えラジオボタン
+        self._mode_var = tk.StringVar(value=self.MODE_RECTANGLE)
+
+        rect_radio = ctk.CTkRadioButton(
+            mode_frame,
+            text="矩形",
+            variable=self._mode_var,
+            value=self.MODE_RECTANGLE,
+            command=self._on_mode_change,
+        )
+        rect_radio.pack(side=tk.LEFT, padx=5)
+
+        circle_radio = ctk.CTkRadioButton(
+            mode_frame,
+            text="円形",
+            variable=self._mode_var,
+            value=self.MODE_CIRCLE,
+            command=self._on_mode_change,
+        )
+        circle_radio.pack(side=tk.LEFT, padx=5)
+
         # 選択領域表示ラベル
         self.region_label = ctk.CTkLabel(
             self,
@@ -53,6 +91,19 @@ class ClipDialog(ctk.CTkToplevel):
             font=("Helvetica", 12),
         )
         self.region_label.pack(pady=(0, 10))
+
+    def _on_mode_change(self) -> None:
+        """モード変更時の処理を行う."""
+        self._crop_mode = self._mode_var.get()
+        logger.debug("Crop mode changed to: %s", self._crop_mode)
+        # 選択領域をリセット
+        self._selected_region = None
+        self.region_label.configure(text="選択領域: 未選択")
+        self.clip_button.configure(state=tk.DISABLED)
+        # キャンバス上の選択描画をクリア
+        if self._selection_rect is not None:
+            self.canvas.delete(self._selection_rect)
+            self._selection_rect = None
 
     def _setup_canvas(self) -> None:
         """キャンバスを設定する."""
@@ -129,31 +180,60 @@ class ClipDialog(ctk.CTkToplevel):
         self._drag_start_x = event.x
         self._drag_start_y = event.y
 
-        # 既存の選択矩形を削除
+        # 既存の選択描画を削除
         if self._selection_rect is not None:
             self.canvas.delete(self._selection_rect)
 
-        # 新しい選択矩形を作成
-        self._selection_rect = self.canvas.create_rectangle(
-            event.x, event.y, event.x, event.y,
-            outline="#00FF00",
-            width=2,
-            dash=(4, 4),
-        )
+        if self._crop_mode == self.MODE_RECTANGLE:
+            # 新しい選択矩形を作成
+            self._selection_rect = self.canvas.create_rectangle(
+                event.x, event.y, event.x, event.y,
+                outline="#00FF00",
+                width=2,
+                dash=(4, 4),
+            )
+        else:  # MODE_CIRCLE
+            # 新しい選択円を作成（中心点から開始）
+            self._selection_rect = self.canvas.create_oval(
+                event.x, event.y, event.x, event.y,
+                outline="#00FF00",
+                width=2,
+                dash=(4, 4),
+                fill="",
+            )
 
     def _on_mouse_drag(self, event: tk.Event) -> None:
         """マウスドラッグイベントを処理する."""
         if self._selection_rect is not None:
-            self.canvas.coords(
-                self._selection_rect,
-                self._drag_start_x,
-                self._drag_start_y,
-                event.x,
-                event.y,
-            )
+            if self._crop_mode == self.MODE_RECTANGLE:
+                # 矩形モード: 通常のリクタングル描画
+                self.canvas.coords(
+                    self._selection_rect,
+                    self._drag_start_x,
+                    self._drag_start_y,
+                    event.x,
+                    event.y,
+                )
+            else:  # MODE_CIRCLE
+                # 円形モード: 中心からドラッグ位置までの距離を半径とする円を描画
+                center_x = self._drag_start_x
+                center_y = self._drag_start_y
+                radius = math.sqrt((event.x - center_x) ** 2 + (event.y - center_y) ** 2)
+                self.canvas.coords(
+                    self._selection_rect,
+                    center_x - radius, center_y - radius,
+                    center_x + radius, center_y + radius,
+                )
 
     def _on_mouse_release(self, event: tk.Event) -> None:
         """マウスリリースイベントを処理する."""
+        if self._crop_mode == self.MODE_RECTANGLE:
+            self._on_mouse_release_rectangle(event)
+        else:  # MODE_CIRCLE
+            self._on_mouse_release_circle(event)
+
+    def _on_mouse_release_rectangle(self, event: tk.Event) -> None:
+        """矩形モードでマウスリリースされたときの処理を行う."""
         x1 = min(self._drag_start_x, event.x)
         y1 = min(self._drag_start_y, event.y)
         x2 = max(self._drag_start_x, event.x)
@@ -195,13 +275,61 @@ class ClipDialog(ctk.CTkToplevel):
         # 選択矩形のスタイルを変更
         self.canvas.itemconfig(self._selection_rect, outline="#00FF00", dash=())
 
+    def _on_mouse_release_circle(self, event: tk.Event) -> None:
+        """円形モードでマウスリリースされたときの処理を行う."""
+        # 中心座標と半径を計算
+        center_x = self._drag_start_x
+        center_y = self._drag_start_y
+        radius = math.sqrt((event.x - center_x) ** 2 + (event.y - center_y) ** 2)
+
+        # 半径が有効か確認
+        if radius < 3:
+            return
+
+        # 表示画像の座標から元画像の座標に変換
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        canvas_center_x = canvas_width // 2
+        canvas_center_y = canvas_height // 2
+
+        img = self._original_image
+        display_img_width = self._photo_image.width()
+        display_img_height = self._photo_image.height()
+
+        img_start_x = canvas_center_x - display_img_width // 2
+        img_start_y = canvas_center_y - display_img_height // 2
+
+        # 表示座標を元画像座標に変換
+        ratio_x = img.width / display_img_width
+        ratio_y = img.height / display_img_height
+
+        # 中心座標を元画像座標に変換
+        orig_center_x = int((center_x - img_start_x) * ratio_x)
+        orig_center_y = int((center_y - img_start_y) * ratio_y)
+        orig_radius_x = int(radius * ratio_x)
+        orig_radius_y = int(radius * ratio_y)
+
+        # 円の外接矩形をselected_regionに保存（円形モード識別用）
+        # 負の値を-1に設定して矩形モードと区別
+        self._selected_region = (orig_center_x, orig_center_y, orig_radius_x, orig_radius_y)
+        self.region_label.configure(
+            text=f"円選択: 中心({orig_center_x}, {orig_center_y}) "
+                f"半径: {orig_radius_x}x{orig_radius_y}"
+        )
+        self.clip_button.configure(state=tk.NORMAL)
+
+        # 選択円のスタイルを変更
+        self.canvas.itemconfig(self._selection_rect, outline="#00FF00", dash=())
+
     def _clip_and_save(self) -> None:
         """選択領域をクリップして保存ダイアログを表示する."""
         if self._selected_region is None:
             return
 
-        x1, y1, x2, y2 = self._selected_region
-        clipped_image = self._original_image.crop((x1, y1, x2, y2))
+        if self._crop_mode == self.MODE_CIRCLE:
+            clipped_image = self._clip_circle()
+        else:
+            clipped_image = self._clip_rectangle()
 
         # 保存ダイアログ
         file_path = ctk.filedialog.asksaveasfilename(
@@ -235,3 +363,48 @@ class ClipDialog(ctk.CTkToplevel):
         except Exception as e:
             logger.error("Failed to save clipped image: %s", e)
             ctk.messagebox.show_error("エラー", f"保存に失敗しました:\n{e}")
+
+    def _clip_rectangle(self) -> Image.Image:
+        """矩形領域をクリップする."""
+        x1, y1, x2, y2 = self._selected_region
+        return self._original_image.crop((x1, y1, x2, y2))
+
+    def _clip_circle(self) -> Image.Image:
+        """円形領域をクリップし、円外を透過にする."""
+        center_x, center_y, radius_x, radius_y = self._selected_region
+        img = self._original_image
+
+        # 円の外接矩形を計算
+        x1 = max(0, center_x - radius_x)
+        y1 = max(0, center_y - radius_y)
+        x2 = min(img.width, center_x + radius_x)
+        y2 = min(img.height, center_y + radius_y)
+
+        # 外接矩形領域を切り出す
+        cropped = img.crop((x1, y1, x2, y2))
+
+        # RGBAに変換（アルファチャンネルを確保）
+        if cropped.mode != "RGBA":
+            cropped = cropped.convert("RGBA")
+
+        # マスク画像を作成（円内は255、円外は0）
+        mask = Image.new("L", cropped.size, 0)
+        draw = ImageDraw.Draw(mask)
+
+        # 円の中心座標をクリップ済み画像の座標系に変換
+        local_center_x = center_x - x1
+        local_center_y = center_y - y1
+
+        # 円を描画
+        draw.ellipse(
+            [
+                (local_center_x - radius_x, local_center_y - radius_y),
+                (local_center_x + radius_x, local_center_y + radius_y),
+            ],
+            fill=255,
+        )
+
+        # マスクを適用して円外を透過にする
+        cropped.putalpha(mask)
+
+        return cropped
